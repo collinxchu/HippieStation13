@@ -1,5 +1,5 @@
-//shamelessly stolen from paradise. Credits to tigercat2000.
-//Modified a lot by Kokojo, because of that damn UI. I mean FUCK.
+//Originally stolen from paradise. Credits to tigercat2000.
+//Modified a lot by Kokojo.
 /obj/machinery/poolcontroller
 	name = "Pool Controller"
 	desc = "A controller for the nearby pool."
@@ -7,13 +7,14 @@
 	icon_state = "poolcnorm"
 	anchored = 1
 	density = 1
-	var/amount_per_transfer_from_this = 5
 	var/list/linkedturfs = list() //List contains all of the linked pool turfs to this controller, assignment happens on New()
 	var/temperature = "normal" //The temperature of the pool, starts off on normal, which has no effects.
 	var/srange = 5 //The range of the search for pool turfs, change this for bigger or smaller pools.
 	var/linkedmist = list() //Used to keep track of created mist
 	var/misted = 0 //Used to check for mist.
-	var/chem_volume = 10
+	var/beaker = null
+	var/cur_reagent = "pooladone"
+	var/datum/reagent/currentreageant = datum/reagent/medicine/pooladone
 	var/datum/wires/poolcontroller/wires = null
 	var/drainable = 0
 	var/drained = 0
@@ -21,8 +22,8 @@
 	var/seconds_electrified = 0	//Shock morons, like an airlock.
 
 /obj/machinery/poolcontroller/New() //This proc automatically happens on world start
-	create_reagents(chem_volume)
 	wires = new(src)
+	beaker = new /obj/item/weapon/reagent_containers/glass/beaker/large/pooladone(src)
 	for(var/turf/simulated/pool/water/W in range(srange,src)) //Search for /turf/simulated/beach/water in the range of var/srange
 		src.linkedturfs += W //Add found pool turfs to the central list.
 	..() //Changed to call parent as per MarkvA's recommendation
@@ -33,6 +34,7 @@
 		emagged = 1 //Set the emag var to true.
 
 /obj/machinery/poolcontroller/attackby(obj/item/weapon/W, mob/user)
+	add_fingerprint(user)
 	if(istype(W, /obj/item/weapon/screwdriver) && anchored)
 		panel_open = !panel_open
 		user << "You [panel_open ? "open" : "close"] the maintenance panel."
@@ -44,21 +46,36 @@
 	else if(istype(W, /obj/item/device/multitool)||istype(W, /obj/item/weapon/wirecutters))
 		if(panel_open)
 			attack_hand(user)
+		updateUsrDialog()
 		return
+
 	else if (istype(W,/obj/item/weapon/reagent_containers/glass/beaker/large))
-		if (W.reagents.total_volume >= 100)
-			if(adminlog)
-				log_say("[key_name(user)] has spilled chemicals in the pool")
-				message_admins("[key_name_admin(user)] has spilled chemicals in the pool .")
-			var/transfered = W.reagents.trans_to(src, chem_volume)
-			if(transfered)	//if reagents were transfered, show the message
-				user << "<span class='danger'>You spill the reagents in the reagent duplicator</span>"
-				W.reagents.clear_reagents()
+		if(src.beaker)
+			user << "A beaker is already loaded into the machine."
+			return
+
+		if(isrobot(user))
+			return
+
+		if(W.reagents.total_volume >= 100 && W.reagents.reagent_list.len == 1) //check if full and allow one reageant only.
+			src.beaker =  W
+			user.drop_item()
+			W.loc = src
+			user << "You add the beaker to the machine!"
+			for(var/datum/reagent/R in W.reagents.reagent_list)
+				src.cur_reagent = R.id
+				src.currentreageant = R
+				if(adminlog)
+					log_say("[key_name(user)] has changed the pool's chems to [R.name]")
+					message_admins("[key_name_admin(user)] has changed the pool's chems to [R.name].")
+
 
 		else
-			user << "<span class='danger'>You'll need more to have an effect on the pool.</span>"
+			user << "<span class='notice'>It needs a full beaker.</span>"
 	else
 		..()
+
+
 
 /obj/machinery/vending/attack_paw(mob/user)
 	return attack_hand(user)
@@ -82,17 +99,18 @@
 
 /obj/machinery/poolcontroller/proc/poison()
 	for(var/turf/simulated/pool/water/W in linkedturfs)
-		for(var/mob/living/swimee in W)
-			reagents.reaction(swimee, INGEST)
-			reagents.trans_to(swimee, 1)
-			continue
-	reagents.remove_any(1)
+		for(var/mob/living/carbon/human/swimee in W)
+			if(currentreageant && cur_reagent)
+				swimee.reagents.add_reagent(cur_reagent, 1)
+				world << "got [cur_reagent]"
+				world << "got [cur_reagent.name]"
 
 /obj/machinery/poolcontroller/process()
 	updatePool() //Call the mob affecting proc
 	poison()
 	if(timer > 0)
 		timer--
+		updateUsrDialog()
 
 /obj/machinery/poolcontroller/proc/updatePool()
 	if(!drained)
@@ -165,6 +183,12 @@
 				<B>Current temperature :</B> [temperature]<BR>
 				</B>Drain is [drainable ? "active" : "unactive"]</B> <BR>"})
 
+	if(beaker)
+		dat += "<a href='?src=\ref[src];beaker=1'>Remove Beaker</a><br>"
+		dat += "<B><span class='good'>Duplicator filled with [currentreageant].</span></B><BR><BR><BR>"
+	if(!beaker)
+		dat += "<B><span class='bad'>No beaker loaded</span></B><BR><BR><BR>"
+
 	dat += text({"<B>Pool status :</B>      "})
 	if(timer < 45)
 		switch(drained)
@@ -185,10 +209,11 @@
 		dat += "<a href='?src=\ref[src];Cool=1'>Cool</a><br>"
 		if(emagged)
 			dat += "<a href='?src=\ref[src];Frigid=1'>Frigid</a><br>"
-	if(drainable && !drained && timer == 0)
+	if(drainable && !drained && !timer)
 		dat += "<a href='?src=\ref[src];Activate Drain=1'>Drain Pool</a><br>"
-	if(drainable && drained && timer == 0)
+	if(drainable && drained && !timer)
 		dat += "<a href='?src=\ref[src];Activate Drain=1'>Fill Pool</a><br>"
+		dat += "<a href='?src=\ref[src];Activate Drain=1'>Drain Pool</a><br>"
 
 
 
@@ -201,6 +226,11 @@
 		return
 	if(!isliving(usr))
 		return
+	if(href_list["beaker"])
+		if(beaker)
+			var/obj/item/weapon/reagent_containers/glass/B = beaker
+			B.loc = loc
+			beaker = null
 	if(href_list["Scalding"])
 		if(emagged)
 			timer = 10

@@ -522,5 +522,19 @@ datum/reagent/medicine/brutanol/reaction_mob(var/mob/living/carbon/M, var/method
 	return
 
 
-// Undefine the alias for REAGENTS_EFFECT_MULTIPLER
+
+
+datum/reagent/medicine/pooladone
+	name = "Pooladone"
+	id = "pooladone"
+	description = "A medicinal reagent that heals burns when the body is exercising."
+	color = "#C8A5DC" // rgb: 200, 165, 220
+
+datum/reagent/medicine/pooladone/on_mob_life(var/mob/living/M as mob)
+	if(M.stat != DEAD && M.bodytemperature < 350) //Check if nor burning already.
+		if(M.fireloss < 56 && M.staminaloss > 20 && M.staminaloss < 40)
+			M.adjustFireLoss(-0.6)
+	..()
+	return
+
 #undef REM

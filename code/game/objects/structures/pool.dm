@@ -155,15 +155,9 @@
 			var/mob/living/carbon/human/H = A
 			H.adjustStaminaLoss(1)
 			H.wash()
+			H.ExtinguishMob()
 			if(H.swimming == 1)
 				playsound(src, pick('sound/effects/water_wade1.ogg','sound/effects/water_wade2.ogg','sound/effects/water_wade3.ogg','sound/effects/water_wade4.ogg'), 20, 1)
-				H.ExtinguishMob()
-				if(H.toxloss < 30 && H.staminaloss > 20 && H.staminaloss < 40) 	 //Heals toxin damage pretty well.
-					H.adjustToxLoss(-0.4)
-				if(H.fireloss < 21 && H.staminaloss > 20 && H.staminaloss < 40) //Heals light fire damage.
-					H.adjustFireLoss(-0.4)
-				if(H.bruteloss < 11 && H.staminaloss > 20 && H.staminaloss < 40) //Heals very light brute damage.
-					H.adjustBruteLoss(-0.4)
 				return
 			if(H.swimming == 0)
 				if(locate(/obj/structure/pool/ladder) in H.loc)
@@ -175,7 +169,6 @@
 					playsound(src, 'sound/effects/splash.ogg', 60, 1, 1)
 					H.Weaken(1)
 					H.swimming = 1
-					H.ExtinguishMob()
 					return
 				else
 					H.drop_item()
@@ -186,7 +179,6 @@
 					playsound(src, 'sound/effects/splash.ogg', 60, 1, 1)
 					H.Weaken(3)
 					H.swimming = 1
-					H.ExtinguishMob()
 
 /turf/simulated/pool/water/Exited(mob/M)
 	..()

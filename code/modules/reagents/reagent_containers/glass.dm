@@ -206,6 +206,12 @@
 		reagents.add_reagent("slimejelly", 50)
 		update_icon()
 
+/obj/item/weapon/reagent_containers/glass/beaker/large/pooladone
+	New()
+		..()
+		reagents.add_reagent("pooladone", 100)
+		update_icon()
+
 /obj/item/weapon/reagent_containers/glass/bucket
 	name = "bucket"
 	desc = "It's a bucket."
