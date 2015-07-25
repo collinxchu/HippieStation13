@@ -14,7 +14,7 @@
 	var/misted = 0 //Used to check for mist.
 	var/beaker = null
 	var/cur_reagent = "pooladone"
-	var/datum/reagent/currentreageant = datum/reagent/medicine/pooladone
+//	var/datum/reagent/currentreageant = datum/reagent/medicine/pooladone
 	var/datum/wires/poolcontroller/wires = null
 	var/drainable = 0
 	var/drained = 0
@@ -62,9 +62,10 @@
 			user.drop_item()
 			W.loc = src
 			user << "You add the beaker to the machine!"
+			updateUsrDialog()
 			for(var/datum/reagent/R in W.reagents.reagent_list)
 				src.cur_reagent = R.id
-				src.currentreageant = R
+//				src.currentreageant = R
 				if(adminlog)
 					log_say("[key_name(user)] has changed the pool's chems to [R.name]")
 					message_admins("[key_name_admin(user)] has changed the pool's chems to [R.name].")
@@ -97,17 +98,16 @@
 /obj/machinery/poolcontroller/proc/wires()
 	return wires.GetInteractWindow()
 
-/obj/machinery/poolcontroller/proc/poison()
+/obj/machinery/poolcontroller/proc/poolreagent()
 	for(var/turf/simulated/pool/water/W in linkedturfs)
 		for(var/mob/living/carbon/human/swimee in W)
-			if(currentreageant && cur_reagent)
-				swimee.reagents.add_reagent(cur_reagent, 1)
+			if(beaker && cur_reagent)
+				swimee.reagents.add_reagent(cur_reagent, 0.2)
 				world << "got [cur_reagent]"
-				world << "got [cur_reagent.name]"
 
 /obj/machinery/poolcontroller/process()
 	updatePool() //Call the mob affecting proc
-	poison()
+	poolreagent()
 	if(timer > 0)
 		timer--
 		updateUsrDialog()
@@ -185,7 +185,7 @@
 
 	if(beaker)
 		dat += "<a href='?src=\ref[src];beaker=1'>Remove Beaker</a><br>"
-		dat += "<B><span class='good'>Duplicator filled with [currentreageant].</span></B><BR><BR><BR>"
+		dat += "<B><span class='good'>Duplicator filled with [cur_reagent].</span></B><BR><BR><BR>"
 	if(!beaker)
 		dat += "<B><span class='bad'>No beaker loaded</span></B><BR><BR><BR>"
 
